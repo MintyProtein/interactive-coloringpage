@@ -1,6 +1,7 @@
-
+temp/
 datasets/
 wandb/
 checkpoints/
 temp.ipynb
-__pycache__/*
+/__pycache__/
+auto_captioning.ipynb

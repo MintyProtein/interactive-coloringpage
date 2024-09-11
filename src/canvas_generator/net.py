@@ -24,6 +24,7 @@ class CanvasGenerator:
                  guidance_scale: float, 
                  n_images: int, 
                  seed=None,
+                 save_path=None,
                  **kwargs
                  ):
         generator = None if seed is None else torch.manual_seed(seed)
@@ -34,4 +35,24 @@ class CanvasGenerator:
                          guidance_scale=guidance_scale,
                          generator=generator,
                         ).images 
+        
+    @torch.inference_mode()
+    def get_generator(self, 
+                 prompt: str, 
+                 negative_prompt: str, 
+                 inference_steps: int, 
+                 guidance_scale: float, 
+                 n_images: int, 
+                 seed=None,
+                 save_path=None,
+                 **kwargs
+                 ):
+        gen_seed = None if seed is None else torch.manual_seed(seed)
+        return self.pipe.get_generator(prompt=prompt,
+                         negative_prompt=negative_prompt,
+                         num_inference_steps=inference_steps,
+                         num_images_per_prompt=n_images,
+                         guidance_scale=guidance_scale,
+                         generator=gen_seed,
+                        )
     

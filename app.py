@@ -1,3 +1,5 @@
+import os
+import time
 import argparse
 import sys
 import cv2
@@ -11,9 +13,16 @@ from src.colorizer import InteractiveColoringPipeLine
 from src.canvas_generator import CanvasGenerator
 
 
-CANVAS_PROMPT_PREFIX = "A simple coloring page of "
-COLORIZER_PROMPT_POSTFIX = "aesthetic, masterpiece, simple"
+CACHE_DIR = 'temp/'
+CANVAS_PROMPT_PREFIX = "A coloring page of "
+COLORIZER_PROMPT_POSTFIX = ""
 COLORIZER_ITERATION = 5
+
+def decode_latents(pipe, step, timestep, callback_kwargs):
+    latents = callback_kwargs['latents']
+    image = pipe.vae.decode(latents / pipe.vae.config.scaling_factor, return_dict=False)[0]
+    image = self.image_processor.postprocess(image, output_type=output_type, do_denormalize=[True] * image.shape[0])
+    return image
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
@@ -58,15 +67,29 @@ if __name__=='__main__':
             def generate_canvas(text_prompt,
                                 negative_prompt="nsfw, watermark, text, bad quality, disfigured, color", 
                                 steps=30, 
-                                guidance_scale=8):
+                                guidance_scale=5):
+                save_dir = CACHE_DIR + time.strftime("%m%d%H%M%S") # time_tuple
+                os.makedirs(save_dir)
                 prompt = CANVAS_PROMPT_PREFIX + text_prompt
-                result = canvas_generator.generate(prompt = prompt, 
-                                                  negative_prompt = negative_prompt, 
-                                                  inference_steps = steps, 
-                                                  guidance_scale = guidance_scale,
-                                                  n_images=1)[0]
-            
-                return result
+                #generator = canvas_generator.get_generator(prompt = prompt, 
+                #                                  negative_prompt = negative_prompt, 
+                #                                  inference_steps = steps, 
+                #                                  guidance_scale = guidance_scale,
+                #                                  n_images=1,
+                #                                  callback_on_step_end=decode_latents,
+                #                                  )
+                #for i in range(steps+1):
+                #    result = next(generator).images[0]
+                #    result.save(f"{save_dir}/{i}.jpg")
+                #    yield result
+                #yield result
+                
+                return canvas_generator.generate(prompt = prompt,
+                                                 negative_prompt = negative_prompt, 
+                                                 inference_steps = steps, 
+                                                 guidance_scale = guidance_scale,
+                                                 n_images=1,
+                                                 )[0]
             canvas_btn.click(generate_canvas, inputs=text_prompt, outputs=canvas_image)
         
             def generate_segmap(input_img):
@@ -80,7 +103,8 @@ if __name__=='__main__':
                 map_color = np.concatenate((map_color, map_color, map_color), axis=2)
                 for i in range(1, n_labels):
                     map_color[segmentation_map==i] = [int(j) for j in np.random.randint(0,255,3)]
-                return map_color
+                map_color = map_color * (input_img/255)
+                return map_color.astype(np.uint8)
   
             seg_btn.click(generate_segmap, inputs=canvas_image, outputs=seg_img)
             
